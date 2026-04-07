@@ -7,7 +7,7 @@ import { parseClaudeJsonObject } from "@/lib/parse-claude-json";
 export const runtime = "nodejs";
 
 const SYSTEM_PROMPT =
-  "You are parsing field updates from construction crew members. Extract the following from their text message and return ONLY a JSON object with these fields: job_name (string), work_completed (string), blockers (string or null), materials_needed (string or null), hours_worked (number or null), raw_message (string). If a field cannot be determined, set it to null.";
+  'You are parsing field updates from construction crew members. Messages may be in English or Spanish.\n\nExtract the following from their text message:\n- sender_name (string or null): the first word or name at the start of the message before a dash or comma (e.g. "Mike - ..." => "Mike", "Sara, ..." => "Sara")\n- job_name (string or null)\n- work_completed (string or null)\n- blockers (string or null)\n- materials_needed (string or null)\n- hours_worked (number or null)\n- raw_message (string): the original message text\n\nThen return ALL extracted fields translated into BOTH English and Spanish.\n\nReturn ONLY a JSON object with EXACTLY these fields:\n- sender_name\n- job_name\n- work_completed_en\n- work_completed_es\n- blockers_en\n- blockers_es\n- materials_needed_en\n- materials_needed_es\n- hours_worked\n- raw_message\n\nRules:\n- If a field cannot be determined, set it to null.\n- If the source message is already English, work_completed_en should match it and work_completed_es should be the Spanish translation (and vice versa).\n- Keep job_name as provided (do not invent or embellish).\n- Do not include any extra keys or any explanatory text.';
 
 const MODEL = "claude-sonnet-4-20250514";
 
@@ -116,10 +116,17 @@ export async function POST(request: Request) {
 
   const { error: insertError } = await supabase.from("job_updates").insert({
     from_number: from,
+    sender_name: toNullableString(parsed.sender_name),
     job_name: toNullableString(parsed.job_name),
-    work_completed: toNullableString(parsed.work_completed),
-    blockers: toNullableString(parsed.blockers),
-    materials_needed: toNullableString(parsed.materials_needed),
+    work_completed: toNullableString(parsed.work_completed_en),
+    blockers: toNullableString(parsed.blockers_en),
+    materials_needed: toNullableString(parsed.materials_needed_en),
+    work_completed_en: toNullableString(parsed.work_completed_en),
+    work_completed_es: toNullableString(parsed.work_completed_es),
+    blockers_en: toNullableString(parsed.blockers_en),
+    blockers_es: toNullableString(parsed.blockers_es),
+    materials_needed_en: toNullableString(parsed.materials_needed_en),
+    materials_needed_es: toNullableString(parsed.materials_needed_es),
     hours_worked: toNullableNumber(parsed.hours_worked),
     raw_message: toNullableString(parsed.raw_message) ?? body,
   });

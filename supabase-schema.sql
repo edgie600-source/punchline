@@ -4,13 +4,36 @@ create table if not exists public.job_updates (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
   from_number text not null default '',
+  sender_name text,
   job_name text,
   work_completed text,
+  work_completed_en text,
+  work_completed_es text,
   blockers text,
+  blockers_en text,
+  blockers_es text,
   materials_needed text,
+  materials_needed_en text,
+  materials_needed_es text,
   hours_worked numeric,
   raw_message text
 );
+
+-- If you already created the table, run this safely:
+alter table public.job_updates
+  add column if not exists sender_name text;
+alter table public.job_updates
+  add column if not exists work_completed_en text;
+alter table public.job_updates
+  add column if not exists work_completed_es text;
+alter table public.job_updates
+  add column if not exists blockers_en text;
+alter table public.job_updates
+  add column if not exists blockers_es text;
+alter table public.job_updates
+  add column if not exists materials_needed_en text;
+alter table public.job_updates
+  add column if not exists materials_needed_es text;
 
 alter table public.job_updates enable row level security;
 
