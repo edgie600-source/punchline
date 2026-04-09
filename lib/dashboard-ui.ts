@@ -62,61 +62,75 @@ export function formatTimestampReadable(iso: string): string {
 }
 
 export type BlockerRowFields = {
-  blockers_en: string | null;
-  blockers_es: string | null;
+  blockers?: string | null;
+  blockers_en?: string | null;
+  blockers_es?: string | null;
   blocker_resolved?: boolean | null;
 };
 
 export type JobStatus = "active" | "blocked" | "complete";
 
+/** Stable string for grouping, URLs, and Supabase filters (except null bucket). */
+export function normalizeJobNameKey(name: string | null | undefined): string {
+  const t = name?.trim();
+  return t && t.length > 0 ? t : "Unspecified job";
+}
+
+export function rowHasBlockerContent(row: BlockerRowFields): boolean {
+  return Boolean(
+    row.blockers?.trim() ||
+      row.blockers_en?.trim() ||
+      row.blockers_es?.trim(),
+  );
+}
+
 export function hasBlockerText(
   blockersEn: string | null,
   blockersEs: string | null,
+  blockers?: string | null,
 ): boolean {
-  const b = (blockersEn ?? blockersEs ?? "").trim();
-  return b.length > 0;
+  return rowHasBlockerContent({
+    blockers_en: blockersEn,
+    blockers_es: blockersEs,
+    blockers,
+  });
 }
 
 /**
  * Newest-first list: resolved if marked in DB, or if a newer row has no blocker text.
+ * (Display only; stats use countOpenBlockers.)
  */
 export function isBlockerResolved(
   rowIndexInNewestFirst: number,
   updatesNewestFirst: BlockerRowFields[],
 ): boolean {
   const row = updatesNewestFirst[rowIndexInNewestFirst];
-  if (!hasBlockerText(row.blockers_en, row.blockers_es)) return false;
+  if (!rowHasBlockerContent(row)) return false;
   if (row.blocker_resolved === true) return true;
   for (let i = 0; i < rowIndexInNewestFirst; i++) {
     const newer = updatesNewestFirst[i];
-    if (!hasBlockerText(newer.blockers_en, newer.blockers_es)) return true;
+    if (!rowHasBlockerContent(newer)) return true;
   }
   return false;
 }
 
-export function countOpenBlockers(
-  updatesNewestFirst: BlockerRowFields[],
-): number {
-  let n = 0;
-  for (let i = 0; i < updatesNewestFirst.length; i++) {
-    const row = updatesNewestFirst[i];
-    if (!hasBlockerText(row.blockers_en, row.blockers_es)) continue;
-    if (!isBlockerResolved(i, updatesNewestFirst)) n += 1;
-  }
-  return n;
+/** Open blockers for stats: has blocker text and not explicitly resolved. */
+export function countOpenBlockers(rows: BlockerRowFields[]): number {
+  return rows.filter(
+    (r) => rowHasBlockerContent(r) && r.blocker_resolved !== true,
+  ).length;
 }
 
 type JobKeyedRow = BlockerRowFields & {
-  job_id?: string | null;
   job_name?: string | null;
   created_at: string;
 };
 
 function jobGroupKey(row: JobKeyedRow): string {
-  return row.job_id ?? `legacy::${row.job_name?.trim() || ""}`;
+  return normalizeJobNameKey(row.job_name);
 }
 
-/** All jobs: sum of open blockers per job (newest-first order within each job). */
+/** All jobs: sum of open blocker counts per job_name. */
 export function countOpenBlockersAcrossJobs(rows: JobKeyedRow[]): number {
   const byJob = new Map<string, JobKeyedRow[]>();
   for (const r of rows) {
@@ -127,11 +141,7 @@ export function countOpenBlockersAcrossJobs(rows: JobKeyedRow[]): number {
   }
   let sum = 0;
   for (const group of byJob.values()) {
-    const sorted = [...group].sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    );
-    sum += countOpenBlockers(sorted);
+    sum += countOpenBlockers(group);
   }
   return sum;
 }

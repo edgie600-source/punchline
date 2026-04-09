@@ -2,7 +2,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import twilio from "twilio";
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/lib/supabase";
-import { ensureJobForName } from "@/lib/ensure-job";
 import { parseClaudeJsonObject } from "@/lib/parse-claude-json";
 
 export const runtime = "nodejs";
@@ -116,18 +115,12 @@ export async function POST(request: Request) {
   const supabase = createSupabaseClient();
 
   const jobName = toNullableString(parsed.job_name);
-  const jobRef = await ensureJobForName(supabase, jobName);
-  const jobId = jobRef?.id ?? null;
 
   const blockersEn = toNullableString(parsed.blockers_en);
   const blockersEs = toNullableString(parsed.blockers_es);
-  const hasBlocker = Boolean(
-    (blockersEn && blockersEn.trim()) || (blockersEs && blockersEs.trim()),
-  );
 
   const { error: insertError } = await supabase.from("job_updates").insert({
     from_number: from,
-    job_id: jobId,
     sender_name: toNullableString(parsed.sender_name),
     job_name: jobName,
     work_completed: toNullableString(parsed.work_completed_en),
@@ -149,19 +142,6 @@ export async function POST(request: Request) {
       { error: "Failed to save update" },
       { status: 500 },
     );
-  }
-
-  if (jobId) {
-    const { data: jobRow } = await supabase
-      .from("jobs")
-      .select("status")
-      .eq("id", jobId)
-      .maybeSingle();
-
-    if (jobRow?.status !== "complete") {
-      const nextStatus = hasBlocker ? "blocked" : "active";
-      await supabase.from("jobs").update({ status: nextStatus }).eq("id", jobId);
-    }
   }
 
   return new NextResponse(

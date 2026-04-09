@@ -22,6 +22,7 @@ export type InsightUpdatePayload = {
   created_at: string;
   sender_name: string | null;
   work_completed_en: string | null;
+  blockers: string | null;
   blockers_en: string | null;
   materials_needed_en: string | null;
   raw_message: string | null;

@@ -22,9 +22,11 @@ import {
 export type JobDetailUpdateRow = {
   id: string;
   created_at: string;
+  from_number: string | null;
   sender_name: string | null;
   work_completed_en: string | null;
   work_completed_es: string | null;
+  blockers: string | null;
   blockers_en: string | null;
   blockers_es: string | null;
   materials_needed_en: string | null;
@@ -158,8 +160,28 @@ function LightningIcon() {
   );
 }
 
+function blockerDisplayText(
+  row: JobDetailUpdateRow,
+  lang: Language,
+): string {
+  if (lang === "es") {
+    return (
+      row.blockers_es?.trim() ||
+      row.blockers?.trim() ||
+      row.blockers_en?.trim() ||
+      ""
+    );
+  }
+  return (
+    row.blockers_en?.trim() ||
+    row.blockers?.trim() ||
+    row.blockers_es?.trim() ||
+    ""
+  );
+}
+
 export function ClientJobDetail(props: {
-  job: { id: string; name: string; status: JobStatus; created_at: string };
+  jobName: string;
   updates: JobDetailUpdateRow[];
   loadError: string | null;
   insightBullets: string[];
@@ -183,7 +205,7 @@ export function ClientJobDetail(props: {
 
   const openBlockers = useMemo(() => countOpenBlockers(updates), [updates]);
 
-  const jobStatus = props.job.status;
+  const jobStatus: JobStatus = openBlockers > 0 ? "blocked" : "active";
 
   async function resolveBlocker(updateId: string) {
     if (resolvingId) return;
@@ -200,7 +222,7 @@ export function ClientJobDetail(props: {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ jobId: props.job.id }),
+          body: JSON.stringify({ jobName: props.jobName }),
         },
       );
       if (!res.ok) throw new Error("request failed");
@@ -323,7 +345,7 @@ export function ClientJobDetail(props: {
               flex: 1,
             }}
           >
-            {props.job.name}
+            {props.jobName}
           </h1>
           <span
             style={{
@@ -480,15 +502,17 @@ export function ClientJobDetail(props: {
                       lang === "es"
                         ? row.work_completed_es
                         : row.work_completed_en;
-                    const blocker =
-                      lang === "es" ? row.blockers_es : row.blockers_en;
+                    const blocker = blockerDisplayText(row, lang);
                     const materials =
                       lang === "es"
                         ? row.materials_needed_es
                         : row.materials_needed_en;
                     const resolved =
-                      hasBlockerText(row.blockers_en, row.blockers_es) &&
-                      isBlockerResolved(index, updates);
+                      hasBlockerText(
+                        row.blockers_en,
+                        row.blockers_es,
+                        row.blockers,
+                      ) && isBlockerResolved(index, updates);
 
                     return (
                       <li

@@ -8,20 +8,17 @@ import {
   formatTimestamp,
   getAvatarGradient,
   getInitials,
+  normalizeJobNameKey,
 } from "@/lib/dashboard-ui";
 
 type Language = "en" | "es";
-
-export type JobRowRef = { id: string; name: string; status: string };
 
 export type JobUpdateRow = {
   id: string;
   created_at: string;
   sender_name: string | null;
   job_name: string | null;
-  job_id: string | null;
-  /** Supabase may return a single object or a one-element array for the FK embed. */
-  jobs?: JobRowRef | JobRowRef[] | null;
+  blockers: string | null;
   work_completed_en: string | null;
   work_completed_es: string | null;
   blockers_en: string | null;
@@ -34,9 +31,7 @@ export type JobUpdateRow = {
 function groupByJob(rows: JobUpdateRow[]): Map<string, JobUpdateRow[]> {
   const map = new Map<string, JobUpdateRow[]>();
   for (const row of rows) {
-    const key =
-      row.job_id ??
-      `legacy::${row.job_name?.trim() || "Unspecified job"}`;
+    const key = normalizeJobNameKey(row.job_name);
     const existing = map.get(key);
     if (existing) existing.push(row);
     else map.set(key, [row]);
@@ -44,18 +39,20 @@ function groupByJob(rows: JobUpdateRow[]): Map<string, JobUpdateRow[]> {
   return map;
 }
 
-function embeddedJob(row: JobUpdateRow | undefined): JobRowRef | null {
-  const j = row?.jobs;
-  if (!j) return null;
-  return Array.isArray(j) ? j[0] ?? null : j;
-}
-
-function jobDisplayName(updates: JobUpdateRow[]): string {
-  const first = updates[0];
+function blockerListText(row: JobUpdateRow, lang: Language): string {
+  if (lang === "es") {
+    return (
+      row.blockers_es?.trim() ||
+      row.blockers?.trim() ||
+      row.blockers_en?.trim() ||
+      ""
+    );
+  }
   return (
-    embeddedJob(first)?.name ??
-    first?.job_name?.trim() ??
-    "Unspecified job"
+    row.blockers_en?.trim() ||
+    row.blockers?.trim() ||
+    row.blockers_es?.trim() ||
+    ""
   );
 }
 
@@ -254,11 +251,8 @@ export function ClientDashboard(props: {
 
             {/* Job cards */}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {jobCards.map(([groupKey, updates]) => {
+              {jobCards.map(([jobNameKey, updates]) => {
                 const openBlockerCount = countOpenBlockers(updates);
-
-                const jobId = updates[0]?.job_id;
-                const jobName = jobDisplayName(updates);
 
                 const cardInner = (
                   <section
@@ -339,7 +333,7 @@ export function ClientDashboard(props: {
                               margin: 0,
                             }}
                           >
-                            {jobName}
+                            {jobNameKey}
                           </h2>
                           <p
                             style={{
@@ -358,18 +352,16 @@ export function ClientDashboard(props: {
                           </p>
                         </div>
                       </div>
-                      {jobId ? (
-                        <span
-                          style={{
-                            color: "#c7c7cc",
-                            fontSize: 18,
-                            lineHeight: 1,
-                          }}
-                          aria-hidden
-                        >
-                          ›
-                        </span>
-                      ) : null}
+                      <span
+                        style={{
+                          color: "#c7c7cc",
+                          fontSize: 18,
+                          lineHeight: 1,
+                        }}
+                        aria-hidden
+                      >
+                        ›
+                      </span>
                     </div>
 
                     {/* Updates */}
@@ -379,8 +371,7 @@ export function ClientDashboard(props: {
                           lang === "es"
                             ? row.work_completed_es
                             : row.work_completed_en;
-                        const blocker =
-                          lang === "es" ? row.blockers_es : row.blockers_en;
+                        const blocker = blockerListText(row, lang);
                         const materials =
                           lang === "es"
                             ? row.materials_needed_es
@@ -592,28 +583,20 @@ export function ClientDashboard(props: {
                   </section>
                 );
 
-                if (jobId) {
-                  return (
-                    <Link
-                      key={groupKey}
-                      href={`/dashboard/jobs/${jobId}`}
-                      prefetch
-                      style={{
-                        textDecoration: "none",
-                        color: "inherit",
-                        display: "block",
-                        borderRadius: 14,
-                      }}
-                    >
-                      {cardInner}
-                    </Link>
-                  );
-                }
-
                 return (
-                  <div key={groupKey} style={{ borderRadius: 14 }}>
+                  <Link
+                    key={jobNameKey}
+                    href={`/dashboard/jobs/${encodeURIComponent(jobNameKey)}`}
+                    prefetch
+                    style={{
+                      textDecoration: "none",
+                      color: "inherit",
+                      display: "block",
+                      borderRadius: 14,
+                    }}
+                  >
                     {cardInner}
-                  </div>
+                  </Link>
                 );
               })}
             </div>

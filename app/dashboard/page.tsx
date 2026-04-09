@@ -15,7 +15,7 @@ export default async function DashboardPage() {
     const { data, error } = await supabase
       .from("job_updates")
       .select(
-        "id, created_at, sender_name, job_name, job_id, work_completed_en, work_completed_es, blockers_en, blockers_es, materials_needed_en, materials_needed_es, blocker_resolved, jobs ( id, name, status )",
+        "id, created_at, sender_name, job_name, blockers, work_completed_en, work_completed_es, blockers_en, blockers_es, materials_needed_en, materials_needed_es, blocker_resolved",
       )
       .order("created_at", { ascending: false });
 
