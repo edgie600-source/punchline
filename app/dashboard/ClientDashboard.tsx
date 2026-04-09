@@ -1,65 +1,62 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
+import {
+  countOpenBlockers,
+  countOpenBlockersAcrossJobs,
+  formatTimestamp,
+  getAvatarGradient,
+  getInitials,
+} from "@/lib/dashboard-ui";
 
 type Language = "en" | "es";
+
+export type JobRowRef = { id: string; name: string; status: string };
 
 export type JobUpdateRow = {
   id: string;
   created_at: string;
   sender_name: string | null;
   job_name: string | null;
+  job_id: string | null;
+  /** Supabase may return a single object or a one-element array for the FK embed. */
+  jobs?: JobRowRef | JobRowRef[] | null;
   work_completed_en: string | null;
   work_completed_es: string | null;
   blockers_en: string | null;
   blockers_es: string | null;
   materials_needed_en: string | null;
   materials_needed_es: string | null;
+  blocker_resolved?: boolean | null;
 };
 
-const AVATAR_GRADIENTS = [
-  "linear-gradient(135deg, #007aff, #5856d6)",
-  "linear-gradient(135deg, #34c759, #30b0c7)",
-  "linear-gradient(135deg, #ff9500, #ff3b30)",
-  "linear-gradient(135deg, #af52de, #ff2d55)",
-];
-
-function getAvatarGradient(name: string | null): string {
-  if (!name) return AVATAR_GRADIENTS[0];
-  return AVATAR_GRADIENTS[name.charCodeAt(0) % AVATAR_GRADIENTS.length];
-}
-
-function getInitials(name: string | null): string {
-  if (!name) return "?";
-  const parts = name.trim().split(" ");
-  return parts.length >= 2
-    ? (parts[0][0] + parts[1][0]).toUpperCase()
-    : parts[0][0].toUpperCase();
-}
-
-function formatTimestamp(iso: string): string {
-  try {
-    const d = new Date(iso);
-    const now = new Date();
-    const diff = now.getTime() - d.getTime();
-    if (diff < 60_000) return "Just now";
-    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  } catch {
-    return iso;
-  }
-}
-
-function groupByJobName(rows: JobUpdateRow[]): Map<string, JobUpdateRow[]> {
+function groupByJob(rows: JobUpdateRow[]): Map<string, JobUpdateRow[]> {
   const map = new Map<string, JobUpdateRow[]>();
   for (const row of rows) {
-    const key = row.job_name?.trim() || "Unspecified job";
+    const key =
+      row.job_id ??
+      `legacy::${row.job_name?.trim() || "Unspecified job"}`;
     const existing = map.get(key);
     if (existing) existing.push(row);
     else map.set(key, [row]);
   }
   return map;
+}
+
+function embeddedJob(row: JobUpdateRow | undefined): JobRowRef | null {
+  const j = row?.jobs;
+  if (!j) return null;
+  return Array.isArray(j) ? j[0] ?? null : j;
+}
+
+function jobDisplayName(updates: JobUpdateRow[]): string {
+  const first = updates[0];
+  return (
+    embeddedJob(first)?.name ??
+    first?.job_name?.trim() ??
+    "Unspecified job"
+  );
 }
 
 function getStrings(lang: Language) {
@@ -101,15 +98,12 @@ export function ClientDashboard(props: {
 }) {
   const [lang, setLang] = useState<Language>("en");
   const t = useMemo(() => getStrings(lang), [lang]);
-  const groups = useMemo(() => groupByJobName(props.rows), [props.rows]);
+  const groups = useMemo(() => groupByJob(props.rows), [props.rows]);
   const jobCards = useMemo(() => Array.from(groups.entries()), [groups]);
 
-  const totalBlockers = useMemo(
-    () =>
-      props.rows.filter((r) =>
-        lang === "es" ? r.blockers_es : r.blockers_en
-      ).length,
-    [props.rows, lang]
+  const totalOpenBlockers = useMemo(
+    () => countOpenBlockersAcrossJobs(props.rows),
+    [props.rows],
   );
 
   return (
@@ -238,9 +232,9 @@ export function ClientDashboard(props: {
                 color="#1c1c1e"
               />
               <StatCard
-                value={totalBlockers}
+                value={totalOpenBlockers}
                 label={t.openBlockers}
-                color={totalBlockers > 0 ? "#f59e0b" : "#1c1c1e"}
+                color={totalOpenBlockers > 0 ? "#f59e0b" : "#1c1c1e"}
               />
             </div>
 
@@ -260,14 +254,14 @@ export function ClientDashboard(props: {
 
             {/* Job cards */}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {jobCards.map(([jobName, updates]) => {
-                const blockerCount = updates.filter((u) =>
-                  lang === "es" ? u.blockers_es : u.blockers_en
-                ).length;
+              {jobCards.map(([groupKey, updates]) => {
+                const openBlockerCount = countOpenBlockers(updates);
 
-                return (
+                const jobId = updates[0]?.job_id;
+                const jobName = jobDisplayName(updates);
+
+                const cardInner = (
                   <section
-                    key={jobName}
                     style={{
                       background: "#fff",
                       borderRadius: 14,
@@ -355,16 +349,27 @@ export function ClientDashboard(props: {
                             }}
                           >
                             {t.updateLabel(updates.length)}
-                            {blockerCount > 0 && (
+                            {openBlockerCount > 0 && (
                               <span style={{ color: "#f59e0b" }}>
                                 {" · "}
-                                {t.blockerLabel(blockerCount)}
+                                {t.blockerLabel(openBlockerCount)}
                               </span>
                             )}
                           </p>
                         </div>
                       </div>
-                      <span style={{ color: "#c7c7cc", fontSize: 18 }}>›</span>
+                      {jobId ? (
+                        <span
+                          style={{
+                            color: "#c7c7cc",
+                            fontSize: 18,
+                            lineHeight: 1,
+                          }}
+                          aria-hidden
+                        >
+                          ›
+                        </span>
+                      ) : null}
                     </div>
 
                     {/* Updates */}
@@ -411,7 +416,7 @@ export function ClientDashboard(props: {
                                     height: 26,
                                     borderRadius: "50%",
                                     background: getAvatarGradient(
-                                      row.sender_name
+                                      row.sender_name,
                                     ),
                                     display: "flex",
                                     alignItems: "center",
@@ -585,6 +590,30 @@ export function ClientDashboard(props: {
                       })}
                     </ul>
                   </section>
+                );
+
+                if (jobId) {
+                  return (
+                    <Link
+                      key={groupKey}
+                      href={`/dashboard/jobs/${jobId}`}
+                      prefetch
+                      style={{
+                        textDecoration: "none",
+                        color: "inherit",
+                        display: "block",
+                        borderRadius: 14,
+                      }}
+                    >
+                      {cardInner}
+                    </Link>
+                  );
+                }
+
+                return (
+                  <div key={groupKey} style={{ borderRadius: 14 }}>
+                    {cardInner}
+                  </div>
                 );
               })}
             </div>
