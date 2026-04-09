@@ -17,164 +17,38 @@ export type JobUpdateRow = {
   materials_needed_es: string | null;
 };
 
-export function ClientDashboard(props: {
-  rows: JobUpdateRow[];
-  errorMessage: string | null;
-}) {
-  const [lang, setLang] = useState<Language>("en");
+const AVATAR_GRADIENTS = [
+  "linear-gradient(135deg, #007aff, #5856d6)",
+  "linear-gradient(135deg, #34c759, #30b0c7)",
+  "linear-gradient(135deg, #ff9500, #ff3b30)",
+  "linear-gradient(135deg, #af52de, #ff2d55)",
+];
 
-  const groups = useMemo(() => groupByJobName(props.rows), [props.rows]);
-  const jobCards = useMemo(() => Array.from(groups.entries()), [groups]);
-
-  const t = useMemo(() => getStrings(lang), [lang]);
-
-  return (
-    <div className="min-h-full flex flex-col bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white px-5 py-5 shadow-sm">
-        <div className="mx-auto flex w-full max-w-6xl items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">Punchline</h1>
-            <p className="mt-1 text-sm text-slate-700">{t.subtitle}</p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-slate-600">
-              {t.language}
-            </span>
-            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-1">
-              <ToggleButton
-                active={lang === "en"}
-                onClick={() => setLang("en")}
-                label="English"
-              />
-              <ToggleButton
-                active={lang === "es"}
-                onClick={() => setLang("es")}
-                label="Español"
-              />
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
-        {props.errorMessage ? (
-          <div
-            className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-            role="alert"
-          >
-            {props.errorMessage}
-          </div>
-        ) : jobCards.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-12 text-center text-slate-700">
-            {t.emptyState}{" "}
-            <code className="text-slate-900">/api/sms</code>.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {jobCards.map(([jobName, updates]) => (
-              <section
-                key={jobName}
-                className="rounded-2xl border border-slate-200 bg-white shadow-sm"
-              >
-                <div className="border-b border-slate-200 px-5 py-4">
-                  <h2 className="text-base font-semibold leading-6 text-slate-900">
-                    {jobName}
-                  </h2>
-                  <p className="mt-1 text-xs text-slate-600">
-                    {updates.length} {t.updateLabel(updates.length)}
-                  </p>
-                </div>
-
-                <ul className="divide-y divide-slate-100">
-                  {updates.map((row) => {
-                    const work =
-                      lang === "es" ? row.work_completed_es : row.work_completed_en;
-                    const blockers =
-                      lang === "es" ? row.blockers_es : row.blockers_en;
-                    const materials =
-                      lang === "es"
-                        ? row.materials_needed_es
-                        : row.materials_needed_en;
-
-                    return (
-                      <li key={row.id} className="px-5 py-4">
-                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <p className="text-sm font-medium text-slate-900">
-                            {row.sender_name?.trim() || t.unknownSender}
-                          </p>
-                          <time
-                            className="text-xs tabular-nums text-slate-700"
-                            dateTime={row.created_at}
-                          >
-                            {formatTimestamp(row.created_at)}
-                          </time>
-                        </div>
-
-                        {work ? (
-                          <p className="mt-2 text-sm leading-relaxed text-slate-900">
-                            <span className="font-semibold text-slate-900">
-                              {t.completed}
-                            </span>{" "}
-                            <span className="text-slate-800">{work}</span>
-                          </p>
-                        ) : (
-                          <p className="mt-2 text-sm text-slate-700">
-                            {t.noWorkDetails}
-                          </p>
-                        )}
-
-                        {blockers ? (
-                          <p className="mt-2 text-sm leading-relaxed text-slate-900">
-                            <span className="font-semibold text-slate-900">
-                              {t.blockers}
-                            </span>{" "}
-                            <span className="text-slate-800">{blockers}</span>
-                          </p>
-                        ) : null}
-
-                        {materials ? (
-                          <p className="mt-2 text-sm leading-relaxed text-slate-900">
-                            <span className="font-semibold text-slate-900">
-                              {t.materials}
-                            </span>{" "}
-                            <span className="text-slate-800">{materials}</span>
-                          </p>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ))}
-          </div>
-        )}
-      </main>
-    </div>
-  );
+function getAvatarGradient(name: string | null): string {
+  if (!name) return AVATAR_GRADIENTS[0];
+  return AVATAR_GRADIENTS[name.charCodeAt(0) % AVATAR_GRADIENTS.length];
 }
 
-function ToggleButton(props: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={props.onClick}
-      className={[
-        "px-3 py-1.5 text-sm font-medium transition",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
-        props.active
-          ? "rounded-md bg-white text-slate-900 shadow-sm"
-          : "rounded-md text-slate-700 hover:text-slate-900",
-      ].join(" ")}
-      aria-pressed={props.active}
-    >
-      {props.label}
-    </button>
-  );
+function getInitials(name: string | null): string {
+  if (!name) return "?";
+  const parts = name.trim().split(" ");
+  return parts.length >= 2
+    ? (parts[0][0] + parts[1][0]).toUpperCase()
+    : parts[0][0].toUpperCase();
+}
+
+function formatTimestamp(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    if (diff < 60_000) return "Just now";
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  } catch {
+    return iso;
+  }
 }
 
 function groupByJobName(rows: JobUpdateRow[]): Map<string, JobUpdateRow[]> {
@@ -188,45 +62,570 @@ function groupByJobName(rows: JobUpdateRow[]): Map<string, JobUpdateRow[]> {
   return map;
 }
 
-function formatTimestamp(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
-  } catch {
-    return iso;
-  }
-}
-
 function getStrings(lang: Language) {
   if (lang === "es") {
     return {
-      language: "Idioma",
-      subtitle: "Actualizaciones agrupadas por obra (más recientes primero)",
-      emptyState:
-        "Todavía no hay actualizaciones. Los SMS aparecerán aquí después de que Twilio envíe a",
-      unknownSender: "Remitente desconocido",
-      completed: "Completado:",
-      blockers: "Bloqueos:",
-      materials: "Materiales:",
-      noWorkDetails: "No se proporcionaron detalles del trabajo.",
-      updateLabel: (n: number) => (n === 1 ? "actualización" : "actualizaciones"),
+      activeJobs: "Obras activas",
+      openBlockers: "Bloqueos abiertos",
+      jobs: "Obras",
+      completed: "Hecho",
+      blocker: "Bloqueo",
+      materials: "Materiales",
+      unknown: "Desconocido",
+      emptyTitle: "Sin actualizaciones",
+      emptyBody: "Las actualizaciones por SMS aparecerán aquí.",
+      updateLabel: (n: number) =>
+        n === 1 ? "1 actualización" : `${n} actualizaciones`,
+      blockerLabel: (n: number) =>
+        n === 1 ? "1 bloqueo" : `${n} bloqueos`,
     };
   }
-
   return {
-    language: "Language",
-    subtitle: "Job updates grouped by job (newest first)",
-    emptyState:
-      "No job updates yet. SMS replies will show up here after Twilio posts to",
-    unknownSender: "Unknown sender",
-    completed: "Completed:",
-    blockers: "Blockers:",
-    materials: "Materials:",
-    noWorkDetails: "No work details provided.",
-    updateLabel: (n: number) => (n === 1 ? "update" : "updates"),
+    activeJobs: "Active jobs",
+    openBlockers: "Open blockers",
+    jobs: "Jobs",
+    completed: "Done",
+    blocker: "Blocker",
+    materials: "Materials",
+    unknown: "Unknown",
+    emptyTitle: "No updates yet",
+    emptyBody: "SMS field updates will appear here.",
+    updateLabel: (n: number) => (n === 1 ? "1 update" : `${n} updates`),
+    blockerLabel: (n: number) => (n === 1 ? "1 blocker" : `${n} blockers`),
   };
 }
 
+export function ClientDashboard(props: {
+  rows: JobUpdateRow[];
+  errorMessage: string | null;
+}) {
+  const [lang, setLang] = useState<Language>("en");
+  const t = useMemo(() => getStrings(lang), [lang]);
+  const groups = useMemo(() => groupByJobName(props.rows), [props.rows]);
+  const jobCards = useMemo(() => Array.from(groups.entries()), [groups]);
+
+  const totalBlockers = useMemo(
+    () =>
+      props.rows.filter((r) =>
+        lang === "es" ? r.blockers_es : r.blockers_en
+      ).length,
+    [props.rows, lang]
+  );
+
+  return (
+    <div
+      style={{
+        fontFamily:
+          "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif",
+        background: "#f2f2f7",
+        minHeight: "100vh",
+      }}
+    >
+      {/* Nav */}
+      <nav
+        style={{
+          background: "rgba(255,255,255,0.85)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          borderBottom: "0.5px solid rgba(0,0,0,0.1)",
+          padding: "0 20px",
+          height: 52,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 17,
+            fontWeight: 600,
+            color: "#1c1c1e",
+            letterSpacing: "-0.01em",
+          }}
+        >
+          Punchline
+        </span>
+
+        {/* Language toggle */}
+        <div
+          style={{
+            display: "flex",
+            background: "rgba(118,118,128,0.12)",
+            borderRadius: 9,
+            padding: 2,
+            gap: 2,
+          }}
+        >
+          {(["en", "es"] as Language[]).map((l) => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => setLang(l)}
+              style={{
+                fontSize: 13,
+                fontWeight: 500,
+                padding: "4px 14px",
+                borderRadius: 7,
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                transition: "all 0.15s",
+                background: lang === l ? "#fff" : "transparent",
+                color: lang === l ? "#1c1c1e" : "#3c3c43",
+                boxShadow:
+                  lang === l
+                    ? "0 1px 3px rgba(0,0,0,0.12), 0 0.5px 1px rgba(0,0,0,0.08)"
+                    : "none",
+              }}
+            >
+              {l === "en" ? "English" : "Español"}
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      <main style={{ padding: "20px 20px 40px", maxWidth: 680, margin: "0 auto" }}>
+        {props.errorMessage ? (
+          <div
+            role="alert"
+            style={{
+              background: "#fff",
+              borderRadius: 14,
+              padding: "14px 16px",
+              color: "#ff3b30",
+              fontSize: 14,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+            }}
+          >
+            {props.errorMessage}
+          </div>
+        ) : jobCards.length === 0 ? (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "80px 24px",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 17,
+                fontWeight: 600,
+                color: "#1c1c1e",
+                marginBottom: 6,
+              }}
+            >
+              {t.emptyTitle}
+            </p>
+            <p style={{ fontSize: 14, color: "#8e8e93" }}>{t.emptyBody}</p>
+          </div>
+        ) : (
+          <>
+            {/* Summary stats */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 10,
+                marginBottom: 24,
+              }}
+            >
+              <StatCard
+                value={jobCards.length}
+                label={t.activeJobs}
+                color="#1c1c1e"
+              />
+              <StatCard
+                value={totalBlockers}
+                label={t.openBlockers}
+                color={totalBlockers > 0 ? "#f59e0b" : "#1c1c1e"}
+              />
+            </div>
+
+            {/* Section label */}
+            <p
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "#8e8e93",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                margin: "0 4px 8px",
+              }}
+            >
+              {t.jobs}
+            </p>
+
+            {/* Job cards */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {jobCards.map(([jobName, updates]) => {
+                const blockerCount = updates.filter((u) =>
+                  lang === "es" ? u.blockers_es : u.blockers_en
+                ).length;
+
+                return (
+                  <section
+                    key={jobName}
+                    style={{
+                      background: "#fff",
+                      borderRadius: 14,
+                      overflow: "hidden",
+                      boxShadow:
+                        "0 1px 3px rgba(0,0,0,0.06), 0 0.5px 1px rgba(0,0,0,0.04)",
+                    }}
+                  >
+                    {/* Job header */}
+                    <div
+                      style={{
+                        padding: "14px 16px 12px",
+                        borderBottom: "0.5px solid rgba(0,0,0,0.06)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <div
+                        style={{ display: "flex", alignItems: "center", gap: 10 }}
+                      >
+                        <div
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 8,
+                            background: "#e5f2ff",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                          >
+                            <rect
+                              x="1"
+                              y="10"
+                              width="14"
+                              height="2"
+                              rx="1"
+                              fill="#007aff"
+                            />
+                            <rect
+                              x="3"
+                              y="6"
+                              width="10"
+                              height="2"
+                              rx="1"
+                              fill="#007aff"
+                              opacity="0.5"
+                            />
+                            <rect
+                              x="6"
+                              y="2"
+                              width="4"
+                              height="2"
+                              rx="1"
+                              fill="#007aff"
+                              opacity="0.25"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <h2
+                            style={{
+                              fontSize: 15,
+                              fontWeight: 600,
+                              color: "#1c1c1e",
+                              letterSpacing: "-0.01em",
+                              margin: 0,
+                            }}
+                          >
+                            {jobName}
+                          </h2>
+                          <p
+                            style={{
+                              fontSize: 12,
+                              color: "#8e8e93",
+                              margin: "2px 0 0",
+                            }}
+                          >
+                            {t.updateLabel(updates.length)}
+                            {blockerCount > 0 && (
+                              <span style={{ color: "#f59e0b" }}>
+                                {" · "}
+                                {t.blockerLabel(blockerCount)}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <span style={{ color: "#c7c7cc", fontSize: 18 }}>›</span>
+                    </div>
+
+                    {/* Updates */}
+                    <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                      {updates.map((row) => {
+                        const work =
+                          lang === "es"
+                            ? row.work_completed_es
+                            : row.work_completed_en;
+                        const blocker =
+                          lang === "es" ? row.blockers_es : row.blockers_en;
+                        const materials =
+                          lang === "es"
+                            ? row.materials_needed_es
+                            : row.materials_needed_en;
+
+                        return (
+                          <li
+                            key={row.id}
+                            style={{
+                              padding: "12px 16px",
+                              borderBottom: "0.5px solid rgba(0,0,0,0.05)",
+                            }}
+                          >
+                            {/* Sender row */}
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                marginBottom: 8,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: 26,
+                                    height: 26,
+                                    borderRadius: "50%",
+                                    background: getAvatarGradient(
+                                      row.sender_name
+                                    ),
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: 10,
+                                    fontWeight: 600,
+                                    color: "#fff",
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {getInitials(row.sender_name)}
+                                </div>
+                                <span
+                                  style={{
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    color: "#1c1c1e",
+                                  }}
+                                >
+                                  {row.sender_name?.trim() || t.unknown}
+                                </span>
+                              </div>
+                              <time
+                                dateTime={row.created_at}
+                                style={{ fontSize: 11, color: "#8e8e93" }}
+                              >
+                                {formatTimestamp(row.created_at)}
+                              </time>
+                            </div>
+
+                            {/* Fields */}
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 6,
+                              }}
+                            >
+                              {work && (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: 8,
+                                    alignItems: "baseline",
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                      color: "#8e8e93",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.04em",
+                                      minWidth: 64,
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    {t.completed}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: 13,
+                                      color: "#1c1c1e",
+                                      lineHeight: 1.5,
+                                    }}
+                                  >
+                                    {work}
+                                  </span>
+                                </div>
+                              )}
+
+                              {blocker && (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: 8,
+                                    alignItems: "baseline",
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                      color: "#8e8e93",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.04em",
+                                      minWidth: 64,
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    {t.blocker}
+                                  </span>
+                                  <div
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 5,
+                                      background: "#fff3cd",
+                                      borderRadius: 7,
+                                      padding: "4px 9px",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        width: 5,
+                                        height: 5,
+                                        borderRadius: "50%",
+                                        background: "#f59e0b",
+                                        flexShrink: 0,
+                                        display: "inline-block",
+                                      }}
+                                    />
+                                    <span
+                                      style={{
+                                        fontSize: 13,
+                                        color: "#92400e",
+                                        lineHeight: 1.4,
+                                      }}
+                                    >
+                                      {blocker}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {materials && (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: 8,
+                                    alignItems: "baseline",
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                      color: "#8e8e93",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.04em",
+                                      minWidth: 64,
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    {t.materials}
+                                  </span>
+                                  <div
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      background: "#f2f2f7",
+                                      borderRadius: 7,
+                                      padding: "4px 9px",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: 13,
+                                        color: "#3c3c43",
+                                        lineHeight: 1.4,
+                                      }}
+                                    >
+                                      {materials}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function StatCard({
+  value,
+  label,
+  color,
+}: {
+  value: number;
+  label: string;
+  color: string;
+}) {
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 14,
+        padding: "14px 16px",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 32,
+          fontWeight: 300,
+          color,
+          letterSpacing: "-0.03em",
+          lineHeight: 1,
+          marginBottom: 4,
+        }}
+      >
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: "#8e8e93" }}>{label}</div>
+    </div>
+  );
+}
