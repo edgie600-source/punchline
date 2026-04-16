@@ -86,7 +86,8 @@ export default async function JobDetailPage({
         jobName={jobNameKey}
         updates={[]}
         loadError={upError.message}
-        insightBullets={[]}
+        insightBullets_en={[]}
+        insightBullets_es={[]}
         insightError={null}
         stats={{
           totalUpdates: 0,
@@ -100,7 +101,8 @@ export default async function JobDetailPage({
 
   const updates = rawRows as unknown as JobDetailUpdateRow[];
 
-  const { bullets, error: insightError } = await generateJobInsights(updates);
+  const { bullets_en, bullets_es, error: insightError } =
+    await generateJobInsights(updates);
 
   const crewCount = new Set(
     updates.map((u) => u.from_number?.trim()).filter(Boolean),
@@ -111,7 +113,8 @@ export default async function JobDetailPage({
       jobName={jobNameKey}
       updates={updates}
       loadError={null}
-      insightBullets={bullets}
+      insightBullets_en={bullets_en}
+      insightBullets_es={bullets_es}
       insightError={insightError}
       stats={{
         totalUpdates: updates.length,

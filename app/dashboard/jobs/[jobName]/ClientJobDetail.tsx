@@ -184,7 +184,8 @@ export function ClientJobDetail(props: {
   jobName: string;
   updates: JobDetailUpdateRow[];
   loadError: string | null;
-  insightBullets: string[];
+  insightBullets_en: string[];
+  insightBullets_es: string[];
   insightError: string | null;
   stats: {
     totalUpdates: number;
@@ -422,7 +423,10 @@ export function ClientJobDetail(props: {
                     lineHeight: 1.55,
                   }}
                 >
-                  {props.insightBullets.map((b, i) => (
+                  {(lang === "es"
+                    ? props.insightBullets_es
+                    : props.insightBullets_en
+                  ).map((b, i) => (
                     <li key={i} style={{ marginBottom: 6 }}>
                       {b}
                     </li>

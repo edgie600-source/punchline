@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   countOpenBlockers,
   countOpenBlockersAcrossJobs,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/dashboard-ui";
 
 type Language = "en" | "es";
+type TabKey = "active" | "past";
 
 export type JobUpdateRow = {
   id: string;
@@ -62,12 +63,19 @@ function getStrings(lang: Language) {
       activeJobs: "Obras activas",
       openBlockers: "Bloqueos abiertos",
       jobs: "Obras",
+      tabActive: "Activas",
+      tabPast: "Finalizadas",
+      markDone: "Marcar hecho",
+      restore: "Restaurar",
+      delete: "Eliminar",
       completed: "Hecho",
       blocker: "Bloqueo",
       materials: "Materiales",
       unknown: "Desconocido",
       emptyTitle: "Sin actualizaciones",
       emptyBody: "Las actualizaciones por SMS aparecerán aquí.",
+      emptyPastTitle: "Sin obras finalizadas",
+      emptyPastBody: "Las obras marcadas como hechas aparecerán aquí.",
       updateLabel: (n: number) =>
         n === 1 ? "1 actualización" : `${n} actualizaciones`,
       blockerLabel: (n: number) =>
@@ -78,12 +86,19 @@ function getStrings(lang: Language) {
     activeJobs: "Active jobs",
     openBlockers: "Open blockers",
     jobs: "Jobs",
+    tabActive: "Active",
+    tabPast: "Past jobs",
+    markDone: "Mark done",
+    restore: "Restore",
+    delete: "Delete",
     completed: "Done",
     blocker: "Blocker",
     materials: "Materials",
     unknown: "Unknown",
     emptyTitle: "No updates yet",
     emptyBody: "SMS field updates will appear here.",
+    emptyPastTitle: "No past jobs yet",
+    emptyPastBody: "Jobs marked done will show up here.",
     updateLabel: (n: number) => (n === 1 ? "1 update" : `${n} updates`),
     blockerLabel: (n: number) => (n === 1 ? "1 blocker" : `${n} blockers`),
   };
@@ -92,16 +107,65 @@ function getStrings(lang: Language) {
 export function ClientDashboard(props: {
   rows: JobUpdateRow[];
   errorMessage: string | null;
+  jobStatuses: Record<string, string>;
 }) {
   const [lang, setLang] = useState<Language>("en");
+  const [tab, setTab] = useState<TabKey>("active");
   const t = useMemo(() => getStrings(lang), [lang]);
   const groups = useMemo(() => groupByJob(props.rows), [props.rows]);
-  const jobCards = useMemo(() => Array.from(groups.entries()), [groups]);
+  const cards = useMemo(() => Array.from(groups.entries()), [groups]);
+
+  const [jobStatuses, setJobStatuses] = useState<Record<string, string>>(
+    () => props.jobStatuses ?? {},
+  );
+
+  useEffect(() => {
+    setJobStatuses(props.jobStatuses ?? {});
+  }, [props.jobStatuses]);
+
+  const activeCards = useMemo(
+    () =>
+      cards.filter(([jobNameKey]) => {
+        const status = jobStatuses[jobNameKey] ?? "active";
+        return status !== "done" && status !== "deleted";
+      }),
+    [cards, jobStatuses],
+  );
+
+  const pastCards = useMemo(
+    () => cards.filter(([jobNameKey]) => (jobStatuses[jobNameKey] ?? "active") === "done"),
+    [cards, jobStatuses],
+  );
+
+  const cardsToShow = tab === "past" ? pastCards : activeCards;
+
+  const activeRows = useMemo(
+    () => activeCards.flatMap(([, updates]) => updates),
+    [activeCards],
+  );
 
   const totalOpenBlockers = useMemo(
-    () => countOpenBlockersAcrossJobs(props.rows),
-    [props.rows],
+    () => countOpenBlockersAcrossJobs(activeRows),
+    [activeRows],
   );
+
+  async function setStatus(jobNameKey: string, status: string) {
+    const prev = jobStatuses[jobNameKey] ?? "active";
+    setJobStatuses((m) => ({ ...m, [jobNameKey]: status }));
+    try {
+      const res = await fetch(
+        `/api/jobs/${encodeURIComponent(jobNameKey)}/status`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        },
+      );
+      if (!res.ok) throw new Error("request failed");
+    } catch {
+      setJobStatuses((m) => ({ ...m, [jobNameKey]: prev }));
+    }
+  }
 
   return (
     <div
@@ -193,7 +257,7 @@ export function ClientDashboard(props: {
           >
             {props.errorMessage}
           </div>
-        ) : jobCards.length === 0 ? (
+        ) : cards.length === 0 ? (
           <div
             style={{
               textAlign: "center",
@@ -214,26 +278,72 @@ export function ClientDashboard(props: {
           </div>
         ) : (
           <>
-            {/* Summary stats */}
+            {/* Tabs */}
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 10,
-                marginBottom: 24,
+                display: "flex",
+                background: "rgba(118,118,128,0.12)",
+                borderRadius: 12,
+                padding: 3,
+                gap: 3,
+                marginBottom: 14,
               }}
             >
-              <StatCard
-                value={jobCards.length}
-                label={t.activeJobs}
-                color="#1c1c1e"
-              />
-              <StatCard
-                value={totalOpenBlockers}
-                label={t.openBlockers}
-                color={totalOpenBlockers > 0 ? "#f59e0b" : "#1c1c1e"}
-              />
+              {(
+                [
+                  { key: "active" as const, label: t.tabActive },
+                  { key: "past" as const, label: t.tabPast },
+                ] satisfies Array<{ key: TabKey; label: string }>
+              ).map((x) => (
+                <button
+                  key={x.key}
+                  type="button"
+                  onClick={() => setTab(x.key)}
+                  style={{
+                    flex: 1,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    border: "none",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    transition: "all 0.15s",
+                    background: tab === x.key ? "#fff" : "transparent",
+                    color: tab === x.key ? "#1c1c1e" : "#3c3c43",
+                    boxShadow:
+                      tab === x.key
+                        ? "0 1px 3px rgba(0,0,0,0.12), 0 0.5px 1px rgba(0,0,0,0.08)"
+                        : "none",
+                  }}
+                >
+                  {x.label}
+                </button>
+              ))}
             </div>
+
+            {/* Summary stats (active only) */}
+            {tab === "active" ? (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 10,
+                  marginBottom: 24,
+                }}
+              >
+                <StatCard
+                  value={activeCards.length}
+                  label={t.activeJobs}
+                  color="#1c1c1e"
+                />
+                <StatCard
+                  value={totalOpenBlockers}
+                  label={t.openBlockers}
+                  color={totalOpenBlockers > 0 ? "#f59e0b" : "#1c1c1e"}
+                />
+              </div>
+            ) : null}
 
             {/* Section label */}
             <p
@@ -251,8 +361,34 @@ export function ClientDashboard(props: {
 
             {/* Job cards */}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {jobCards.map(([jobNameKey, updates]) => {
+              {cardsToShow.length === 0 ? (
+                <div
+                  style={{
+                    background: "#fff",
+                    borderRadius: 14,
+                    padding: "28px 18px",
+                    textAlign: "center",
+                    color: "#8e8e93",
+                    fontSize: 14,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 600,
+                      color: "#1c1c1e",
+                      marginBottom: 6,
+                    }}
+                  >
+                    {t.emptyPastTitle}
+                  </div>
+                  <div>{t.emptyPastBody}</div>
+                </div>
+              ) : null}
+              {cardsToShow.map(([jobNameKey, updates]) => {
                 const openBlockerCount = countOpenBlockers(updates);
+                const isPast = tab === "past";
 
                 const cardInner = (
                   <section
@@ -262,6 +398,7 @@ export function ClientDashboard(props: {
                       overflow: "hidden",
                       boxShadow:
                         "0 1px 3px rgba(0,0,0,0.06), 0 0.5px 1px rgba(0,0,0,0.04)",
+                      opacity: isPast ? 0.75 : 1,
                     }}
                   >
                     {/* Job header */}
@@ -282,46 +419,65 @@ export function ClientDashboard(props: {
                             width: 32,
                             height: 32,
                             borderRadius: 8,
-                            background: "#e5f2ff",
+                            background: isPast ? "#d1fae5" : "#e5f2ff",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             flexShrink: 0,
                           }}
                         >
-                          <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 16 16"
-                            fill="none"
-                          >
-                            <rect
-                              x="1"
-                              y="10"
-                              width="14"
-                              height="2"
-                              rx="1"
-                              fill="#007aff"
-                            />
-                            <rect
-                              x="3"
-                              y="6"
-                              width="10"
-                              height="2"
-                              rx="1"
-                              fill="#007aff"
-                              opacity="0.5"
-                            />
-                            <rect
-                              x="6"
-                              y="2"
-                              width="4"
-                              height="2"
-                              rx="1"
-                              fill="#007aff"
-                              opacity="0.25"
-                            />
-                          </svg>
+                          {isPast ? (
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              aria-hidden
+                            >
+                              <path
+                                d="M6.5 11.25L3.5 8.25l1.1-1.1 1.9 1.9 4.9-4.9 1.1 1.1-6 6z"
+                                fill="#10b981"
+                                stroke="#059669"
+                                strokeWidth="0.5"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              aria-hidden
+                            >
+                              <rect
+                                x="1"
+                                y="10"
+                                width="14"
+                                height="2"
+                                rx="1"
+                                fill="#007aff"
+                              />
+                              <rect
+                                x="3"
+                                y="6"
+                                width="10"
+                                height="2"
+                                rx="1"
+                                fill="#007aff"
+                                opacity="0.5"
+                              />
+                              <rect
+                                x="6"
+                                y="2"
+                                width="4"
+                                height="2"
+                                rx="1"
+                                fill="#007aff"
+                                opacity="0.25"
+                              />
+                            </svg>
+                          )}
                         </div>
                         <div>
                           <h2
@@ -584,19 +740,104 @@ export function ClientDashboard(props: {
                 );
 
                 return (
-                  <Link
-                    key={jobNameKey}
-                    href={`/dashboard/jobs/${encodeURIComponent(jobNameKey)}`}
-                    prefetch
-                    style={{
-                      textDecoration: "none",
-                      color: "inherit",
-                      display: "block",
-                      borderRadius: 14,
-                    }}
-                  >
-                    {cardInner}
-                  </Link>
+                  <div key={jobNameKey} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <Link
+                      href={`/dashboard/jobs/${encodeURIComponent(jobNameKey)}`}
+                      prefetch
+                      style={{
+                        textDecoration: "none",
+                        color: "inherit",
+                        display: "block",
+                        borderRadius: 14,
+                      }}
+                    >
+                      {cardInner}
+                    </Link>
+
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      {tab === "active" ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setStatus(jobNameKey, "done")}
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              fontFamily: "inherit",
+                              padding: "7px 12px",
+                              borderRadius: 10,
+                              border: "0.5px solid rgba(16, 185, 129, 0.35)",
+                              background: "#d1fae5",
+                              color: "#065f46",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {t.markDone}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!confirm("Delete this job?")) return;
+                              void setStatus(jobNameKey, "deleted");
+                            }}
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              fontFamily: "inherit",
+                              padding: "7px 12px",
+                              borderRadius: 10,
+                              border: "0.5px solid rgba(255, 59, 48, 0.35)",
+                              background: "#ffe4e2",
+                              color: "#b91c1c",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {t.delete}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setStatus(jobNameKey, "active")}
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              fontFamily: "inherit",
+                              padding: "7px 12px",
+                              borderRadius: 10,
+                              border: "0.5px solid rgba(0, 122, 255, 0.35)",
+                              background: "#e5f2ff",
+                              color: "#007aff",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {t.restore}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!confirm("Delete this job?")) return;
+                              void setStatus(jobNameKey, "deleted");
+                            }}
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              fontFamily: "inherit",
+                              padding: "7px 12px",
+                              borderRadius: 10,
+                              border: "0.5px solid rgba(255, 59, 48, 0.35)",
+                              background: "#ffe4e2",
+                              color: "#b91c1c",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {t.delete}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
             </div>

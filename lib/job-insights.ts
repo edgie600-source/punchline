@@ -8,9 +8,9 @@ Write in plain English. Be concise and practical. No markdown headings.
 
 You will receive the 10 most recent SMS-derived updates for ONE job (oldest first in the list).
 Return ONLY a JSON object with EXACTLY this shape:
-{ "bullets": ["...", "..."] }
+{ "bullets_en": ["...", "..."], "bullets_es": ["...", "..."] }
 
-Include between 2 and 4 bullet strings. Each bullet should cover things like:
+Include between 2 and 4 bullet strings in each language. Each bullet should cover things like:
 - Open blockers and roughly how long they have been an issue (infer from timestamps if present)
 - Materials mentioned as needed or on order
 - Progress: what was done and what is likely next
@@ -31,10 +31,18 @@ export type InsightUpdatePayload = {
 
 export async function generateJobInsights(
   updatesNewestFirst: InsightUpdatePayload[],
-): Promise<{ bullets: string[]; error: string | null }> {
+): Promise<{
+  bullets_en: string[];
+  bullets_es: string[];
+  error: string | null;
+}> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) {
-    return { bullets: [], error: "Insights unavailable (missing API key)." };
+    return {
+      bullets_en: [],
+      bullets_es: [],
+      error: "Insights unavailable (missing API key).",
+    };
   }
 
   const last10 = updatesNewestFirst.slice(0, 10);
@@ -42,8 +50,11 @@ export async function generateJobInsights(
 
   if (chronological.length === 0) {
     return {
-      bullets: [
+      bullets_en: [
         "No updates yet for this job. Insights will appear after the crew sends SMS check-ins.",
+      ],
+      bullets_es: [
+        "Aún no hay actualizaciones para esta obra. Los insights aparecerán después de que el equipo envíe reportes por SMS.",
       ],
       error: null,
     };
@@ -55,7 +66,7 @@ export async function generateJobInsights(
   try {
     const message = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 512,
+      max_tokens: 768,
       system: SYSTEM_PROMPT,
       messages: [
         {
@@ -67,35 +78,54 @@ export async function generateJobInsights(
 
     const textBlock = message.content.find((b) => b.type === "text");
     if (!textBlock || textBlock.type !== "text") {
-      return { bullets: [], error: "Could not generate insights." };
+      return { bullets_en: [], bullets_es: [], error: "Could not generate insights." };
     }
 
-    const parsed = parseClaudeJsonObject(textBlock.text) as {
-      bullets?: unknown;
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = parseClaudeJsonObject(textBlock.text);
+    } catch {
+      return { bullets_en: [], bullets_es: [], error: "Could not parse insights." };
+    }
+
+    const normalizeBullets = (raw: unknown): string[] | null => {
+      if (!Array.isArray(raw)) return null;
+      const bullets = raw
+        .filter((b): b is string => typeof b === "string" && b.trim().length > 0)
+        .map((b) => b.trim())
+        .slice(0, 4);
+      return bullets.length > 0 ? bullets : [];
     };
-    const raw = parsed.bullets;
-    if (!Array.isArray(raw)) {
-      return { bullets: [], error: "Could not parse insights." };
+
+    const bulletsEnRaw = parsed.bullets_en;
+    const bulletsEsRaw = parsed.bullets_es;
+
+    const bullets_en = normalizeBullets(bulletsEnRaw);
+    const bullets_es = normalizeBullets(bulletsEsRaw);
+
+    if (bullets_en === null && bullets_es === null) {
+      return { bullets_en: [], bullets_es: [], error: "Could not parse insights." };
     }
 
-    const bullets = raw
-      .filter((b): b is string => typeof b === "string" && b.trim().length > 0)
-      .map((b) => b.trim())
-      .slice(0, 4);
+    const final_en = bullets_en ?? bullets_es ?? [];
+    const final_es = bullets_es ?? bullets_en ?? [];
 
-    if (bullets.length < 2) {
-      return {
-        bullets:
-          bullets.length > 0
-            ? bullets
-            : ["Not enough detail in recent updates to summarize yet."],
-        error: null,
-      };
-    }
+    const default_en = ["Not enough detail in recent updates to summarize yet."];
+    const default_es = [
+      "Todavía no hay suficiente detalle en las actualizaciones recientes para resumir.",
+    ];
 
-    return { bullets, error: null };
+    return {
+      bullets_en: final_en.length >= 2 ? final_en : final_en.length > 0 ? final_en : default_en,
+      bullets_es: final_es.length >= 2 ? final_es : final_es.length > 0 ? final_es : default_es,
+      error: null,
+    };
   } catch (e) {
     console.error(e);
-    return { bullets: [], error: "Could not generate insights right now." };
+    return {
+      bullets_en: [],
+      bullets_es: [],
+      error: "Could not generate insights right now.",
+    };
   }
 }
