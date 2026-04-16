@@ -68,6 +68,8 @@ function getStrings(lang: Language) {
       markDone: "Marcar hecho",
       restore: "Restaurar",
       delete: "Eliminar",
+      viewCrewMessages: (n: number) => `Ver mensajes del equipo (${n})`,
+      hideMessages: "Ocultar mensajes",
       completed: "Hecho",
       blocker: "Bloqueo",
       materials: "Materiales",
@@ -91,6 +93,8 @@ function getStrings(lang: Language) {
     markDone: "Mark done",
     restore: "Restore",
     delete: "Delete",
+    viewCrewMessages: (n: number) => `View crew messages (${n})`,
+    hideMessages: "Hide messages",
     completed: "Done",
     blocker: "Blocker",
     materials: "Materials",
@@ -118,6 +122,7 @@ export function ClientDashboard(props: {
   const [jobStatuses, setJobStatuses] = useState<Record<string, string>>(
     () => props.jobStatuses ?? {},
   );
+  const [expandedJobs, setExpandedJobs] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     setJobStatuses(props.jobStatuses ?? {});
@@ -389,6 +394,7 @@ export function ClientDashboard(props: {
               {cardsToShow.map(([jobNameKey, updates]) => {
                 const openBlockerCount = countOpenBlockers(updates);
                 const isPast = tab === "past";
+                const isExpanded = expandedJobs[jobNameKey] === true;
 
                 const cardInner = (
                   <section
@@ -402,345 +408,6 @@ export function ClientDashboard(props: {
                     }}
                   >
                     {/* Job header */}
-                    <div
-                      style={{
-                        padding: "14px 16px 12px",
-                        borderBottom: "0.5px solid rgba(0,0,0,0.06)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <div
-                        style={{ display: "flex", alignItems: "center", gap: 10 }}
-                      >
-                        <div
-                          style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: 8,
-                            background: isPast ? "#d1fae5" : "#e5f2ff",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {isPast ? (
-                            <svg
-                              width="16"
-                              height="16"
-                              viewBox="0 0 16 16"
-                              fill="none"
-                              aria-hidden
-                            >
-                              <path
-                                d="M6.5 11.25L3.5 8.25l1.1-1.1 1.9 1.9 4.9-4.9 1.1 1.1-6 6z"
-                                fill="#10b981"
-                                stroke="#059669"
-                                strokeWidth="0.5"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                          ) : (
-                            <svg
-                              width="16"
-                              height="16"
-                              viewBox="0 0 16 16"
-                              fill="none"
-                              aria-hidden
-                            >
-                              <rect
-                                x="1"
-                                y="10"
-                                width="14"
-                                height="2"
-                                rx="1"
-                                fill="#007aff"
-                              />
-                              <rect
-                                x="3"
-                                y="6"
-                                width="10"
-                                height="2"
-                                rx="1"
-                                fill="#007aff"
-                                opacity="0.5"
-                              />
-                              <rect
-                                x="6"
-                                y="2"
-                                width="4"
-                                height="2"
-                                rx="1"
-                                fill="#007aff"
-                                opacity="0.25"
-                              />
-                            </svg>
-                          )}
-                        </div>
-                        <div>
-                          <h2
-                            style={{
-                              fontSize: 15,
-                              fontWeight: 600,
-                              color: "#1c1c1e",
-                              letterSpacing: "-0.01em",
-                              margin: 0,
-                            }}
-                          >
-                            {jobNameKey}
-                          </h2>
-                          <p
-                            style={{
-                              fontSize: 12,
-                              color: "#8e8e93",
-                              margin: "2px 0 0",
-                            }}
-                          >
-                            {t.updateLabel(updates.length)}
-                            {openBlockerCount > 0 && (
-                              <span style={{ color: "#f59e0b" }}>
-                                {" · "}
-                                {t.blockerLabel(openBlockerCount)}
-                              </span>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                      <span
-                        style={{
-                          color: "#c7c7cc",
-                          fontSize: 18,
-                          lineHeight: 1,
-                        }}
-                        aria-hidden
-                      >
-                        ›
-                      </span>
-                    </div>
-
-                    {/* Updates */}
-                    <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-                      {updates.map((row) => {
-                        const work =
-                          lang === "es"
-                            ? row.work_completed_es
-                            : row.work_completed_en;
-                        const blocker = blockerListText(row, lang);
-                        const materials =
-                          lang === "es"
-                            ? row.materials_needed_es
-                            : row.materials_needed_en;
-
-                        return (
-                          <li
-                            key={row.id}
-                            style={{
-                              padding: "12px 16px",
-                              borderBottom: "0.5px solid rgba(0,0,0,0.05)",
-                            }}
-                          >
-                            {/* Sender row */}
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                marginBottom: 8,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 8,
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    width: 26,
-                                    height: 26,
-                                    borderRadius: "50%",
-                                    background: getAvatarGradient(
-                                      row.sender_name,
-                                    ),
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    fontSize: 10,
-                                    fontWeight: 600,
-                                    color: "#fff",
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {getInitials(row.sender_name)}
-                                </div>
-                                <span
-                                  style={{
-                                    fontSize: 13,
-                                    fontWeight: 600,
-                                    color: "#1c1c1e",
-                                  }}
-                                >
-                                  {row.sender_name?.trim() || t.unknown}
-                                </span>
-                              </div>
-                              <time
-                                dateTime={row.created_at}
-                                style={{ fontSize: 11, color: "#8e8e93" }}
-                              >
-                                {formatTimestamp(row.created_at)}
-                              </time>
-                            </div>
-
-                            {/* Fields */}
-                            <div
-                              style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 6,
-                              }}
-                            >
-                              {work && (
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    gap: 8,
-                                    alignItems: "baseline",
-                                  }}
-                                >
-                                  <span
-                                    style={{
-                                      fontSize: 11,
-                                      fontWeight: 600,
-                                      color: "#8e8e93",
-                                      textTransform: "uppercase",
-                                      letterSpacing: "0.04em",
-                                      minWidth: 64,
-                                      flexShrink: 0,
-                                    }}
-                                  >
-                                    {t.completed}
-                                  </span>
-                                  <span
-                                    style={{
-                                      fontSize: 13,
-                                      color: "#1c1c1e",
-                                      lineHeight: 1.5,
-                                    }}
-                                  >
-                                    {work}
-                                  </span>
-                                </div>
-                              )}
-
-                              {blocker && (
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    gap: 8,
-                                    alignItems: "baseline",
-                                  }}
-                                >
-                                  <span
-                                    style={{
-                                      fontSize: 11,
-                                      fontWeight: 600,
-                                      color: "#8e8e93",
-                                      textTransform: "uppercase",
-                                      letterSpacing: "0.04em",
-                                      minWidth: 64,
-                                      flexShrink: 0,
-                                    }}
-                                  >
-                                    {t.blocker}
-                                  </span>
-                                  <div
-                                    style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: 5,
-                                      background: "#fff3cd",
-                                      borderRadius: 7,
-                                      padding: "4px 9px",
-                                    }}
-                                  >
-                                    <span
-                                      style={{
-                                        width: 5,
-                                        height: 5,
-                                        borderRadius: "50%",
-                                        background: "#f59e0b",
-                                        flexShrink: 0,
-                                        display: "inline-block",
-                                      }}
-                                    />
-                                    <span
-                                      style={{
-                                        fontSize: 13,
-                                        color: "#92400e",
-                                        lineHeight: 1.4,
-                                      }}
-                                    >
-                                      {blocker}
-                                    </span>
-                                  </div>
-                                </div>
-                              )}
-
-                              {materials && (
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    gap: 8,
-                                    alignItems: "baseline",
-                                  }}
-                                >
-                                  <span
-                                    style={{
-                                      fontSize: 11,
-                                      fontWeight: 600,
-                                      color: "#8e8e93",
-                                      textTransform: "uppercase",
-                                      letterSpacing: "0.04em",
-                                      minWidth: 64,
-                                      flexShrink: 0,
-                                    }}
-                                  >
-                                    {t.materials}
-                                  </span>
-                                  <div
-                                    style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      background: "#f2f2f7",
-                                      borderRadius: 7,
-                                      padding: "4px 9px",
-                                    }}
-                                  >
-                                    <span
-                                      style={{
-                                        fontSize: 13,
-                                        color: "#3c3c43",
-                                        lineHeight: 1.4,
-                                      }}
-                                    >
-                                      {materials}
-                                    </span>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </section>
-                );
-
-                return (
-                  <div key={jobNameKey} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     <Link
                       href={`/dashboard/jobs/${encodeURIComponent(jobNameKey)}`}
                       prefetch
@@ -748,11 +415,387 @@ export function ClientDashboard(props: {
                         textDecoration: "none",
                         color: "inherit",
                         display: "block",
-                        borderRadius: 14,
                       }}
                     >
-                      {cardInner}
+                      <div
+                        style={{
+                          padding: "14px 16px 12px",
+                          borderBottom: "0.5px solid rgba(0,0,0,0.06)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <div
+                          style={{ display: "flex", alignItems: "center", gap: 10 }}
+                        >
+                          <div
+                            style={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: 8,
+                              background: isPast ? "#d1fae5" : "#e5f2ff",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {isPast ? (
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                aria-hidden
+                              >
+                                <path
+                                  d="M6.5 11.25L3.5 8.25l1.1-1.1 1.9 1.9 4.9-4.9 1.1 1.1-6 6z"
+                                  fill="#10b981"
+                                  stroke="#059669"
+                                  strokeWidth="0.5"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            ) : (
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                aria-hidden
+                              >
+                                <rect
+                                  x="1"
+                                  y="10"
+                                  width="14"
+                                  height="2"
+                                  rx="1"
+                                  fill="#007aff"
+                                />
+                                <rect
+                                  x="3"
+                                  y="6"
+                                  width="10"
+                                  height="2"
+                                  rx="1"
+                                  fill="#007aff"
+                                  opacity="0.5"
+                                />
+                                <rect
+                                  x="6"
+                                  y="2"
+                                  width="4"
+                                  height="2"
+                                  rx="1"
+                                  fill="#007aff"
+                                  opacity="0.25"
+                                />
+                              </svg>
+                            )}
+                          </div>
+                          <div>
+                            <h2
+                              style={{
+                                fontSize: 15,
+                                fontWeight: 600,
+                                color: "#1c1c1e",
+                                letterSpacing: "-0.01em",
+                                margin: 0,
+                              }}
+                            >
+                              {jobNameKey}
+                            </h2>
+                            <p
+                              style={{
+                                fontSize: 12,
+                                color: "#8e8e93",
+                                margin: "2px 0 0",
+                              }}
+                            >
+                              {t.updateLabel(updates.length)}
+                              {openBlockerCount > 0 && (
+                                <span style={{ color: "#f59e0b" }}>
+                                  {" · "}
+                                  {t.blockerLabel(openBlockerCount)}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <span
+                          style={{
+                            color: "#c7c7cc",
+                            fontSize: 18,
+                            lineHeight: 1,
+                          }}
+                          aria-hidden
+                        >
+                          ›
+                        </span>
+                      </div>
                     </Link>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedJobs((prev) => ({
+                          ...prev,
+                          [jobNameKey]: !isExpanded,
+                        }))
+                      }
+                      style={{
+                        width: "100%",
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        padding: "12px 16px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "#007aff",
+                        }}
+                      >
+                        {isExpanded ? t.hideMessages : t.viewCrewMessages(updates.length)}
+                      </span>
+                      <span
+                        aria-hidden
+                        style={{ color: "#c7c7cc", fontSize: 16, lineHeight: 1 }}
+                      >
+                        {isExpanded ? "⌃" : "⌄"}
+                      </span>
+                    </button>
+
+                    {isExpanded ? (
+                      <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                        {updates.map((row) => {
+                          const work =
+                            lang === "es"
+                              ? row.work_completed_es
+                              : row.work_completed_en;
+                          const blocker = blockerListText(row, lang);
+                          const materials =
+                            lang === "es"
+                              ? row.materials_needed_es
+                              : row.materials_needed_en;
+
+                          return (
+                            <li
+                              key={row.id}
+                              style={{
+                                padding: "12px 16px",
+                                borderTop: "0.5px solid rgba(0,0,0,0.05)",
+                              }}
+                            >
+                              {/* Sender row */}
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  marginBottom: 8,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      width: 26,
+                                      height: 26,
+                                      borderRadius: "50%",
+                                      background: getAvatarGradient(
+                                        row.sender_name,
+                                      ),
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      fontSize: 10,
+                                      fontWeight: 600,
+                                      color: "#fff",
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    {getInitials(row.sender_name)}
+                                  </div>
+                                  <span
+                                    style={{
+                                      fontSize: 13,
+                                      fontWeight: 600,
+                                      color: "#1c1c1e",
+                                    }}
+                                  >
+                                    {row.sender_name?.trim() || t.unknown}
+                                  </span>
+                                </div>
+                                <time
+                                  dateTime={row.created_at}
+                                  style={{ fontSize: 11, color: "#8e8e93" }}
+                                >
+                                  {formatTimestamp(row.created_at)}
+                                </time>
+                              </div>
+
+                              {/* Fields */}
+                              <div
+                                style={{
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: 6,
+                                }}
+                              >
+                                {work && (
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      gap: 8,
+                                      alignItems: "baseline",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        color: "#8e8e93",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.04em",
+                                        minWidth: 64,
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {t.completed}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: 13,
+                                        color: "#1c1c1e",
+                                        lineHeight: 1.5,
+                                      }}
+                                    >
+                                      {work}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {blocker && (
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      gap: 8,
+                                      alignItems: "baseline",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        color: "#8e8e93",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.04em",
+                                        minWidth: 64,
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {t.blocker}
+                                    </span>
+                                    <div
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 5,
+                                        background: "#fff3cd",
+                                        borderRadius: 7,
+                                        padding: "4px 9px",
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          width: 5,
+                                          height: 5,
+                                          borderRadius: "50%",
+                                          background: "#f59e0b",
+                                          flexShrink: 0,
+                                          display: "inline-block",
+                                        }}
+                                      />
+                                      <span
+                                        style={{
+                                          fontSize: 13,
+                                          color: "#92400e",
+                                          lineHeight: 1.4,
+                                        }}
+                                      >
+                                        {blocker}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {materials && (
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      gap: 8,
+                                      alignItems: "baseline",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        color: "#8e8e93",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.04em",
+                                        minWidth: 64,
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {t.materials}
+                                    </span>
+                                    <div
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        background: "#f2f2f7",
+                                        borderRadius: 7,
+                                        padding: "4px 9px",
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          fontSize: 13,
+                                          color: "#3c3c43",
+                                          lineHeight: 1.4,
+                                        }}
+                                      >
+                                        {materials}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
+                  </section>
+                );
+
+                return (
+                  <div key={jobNameKey} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {cardInner}
 
                     <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                       {tab === "active" ? (
