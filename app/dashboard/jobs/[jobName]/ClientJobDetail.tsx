@@ -199,6 +199,7 @@ export function ClientJobDetail(props: {
 
   const [updates, setUpdates] = useState(() => props.updates);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [messagesOpen, setMessagesOpen] = useState(false);
 
   useEffect(() => {
     setUpdates(props.updates);
@@ -461,211 +462,260 @@ export function ClientJobDetail(props: {
               <StatChip label={t.crew} value={props.stats.crewCount} />
             </div>
 
-            <p
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: "#8e8e93",
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                margin: "0 4px 8px",
-              }}
-            >
-              {lang === "es" ? "Historial" : "Update feed"}
-            </p>
-
-            {updates.length === 0 ? (
-              <div
+            {/* Collapsible crew messages */}
+            <section style={{ marginBottom: 0 }}>
+              <button
+                type="button"
+                onClick={() => setMessagesOpen((v) => !v)}
                 style={{
+                  width: "100%",
                   background: "#fff",
                   borderRadius: 14,
-                  padding: "40px 20px",
-                  textAlign: "center",
-                  color: "#8e8e93",
-                  fontSize: 14,
+                  padding: "14px 16px",
+                  border: "none",
+                  cursor: "pointer",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  fontFamily: "inherit",
+                  textAlign: "left",
                 }}
               >
-                {lang === "es"
-                  ? "Aún no hay actualizaciones para esta obra."
-                  : "No updates for this job yet."}
-              </div>
-            ) : (
-              <div
-                style={{
-                  background: "#fff",
-                  borderRadius: 14,
-                  overflow: "hidden",
-                  boxShadow:
-                    "0 1px 3px rgba(0,0,0,0.06), 0 0.5px 1px rgba(0,0,0,0.04)",
-                }}
-              >
-                <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-                  {updates.map((row, index) => {
-                    const work =
-                      lang === "es"
-                        ? row.work_completed_es
-                        : row.work_completed_en;
-                    const blocker = blockerDisplayText(row, lang);
-                    const materials =
-                      lang === "es"
-                        ? row.materials_needed_es
-                        : row.materials_needed_en;
-                    const resolved =
-                      hasBlockerText(
-                        row.blockers_en,
-                        row.blockers_es,
-                        row.blockers,
-                      ) && isBlockerResolved(index, updates);
+                <span style={{ fontSize: 14, fontWeight: 600, color: "#1c1c1e" }}>
+                  {messagesOpen
+                    ? lang === "es"
+                      ? "Ocultar mensajes"
+                      : "Hide messages"
+                    : lang === "es"
+                      ? `Ver mensajes del equipo (${updates.length})`
+                      : `View crew messages (${updates.length})`}
+                </span>
+                <span
+                  aria-hidden
+                  style={{ color: "#c7c7cc", fontSize: 18, lineHeight: 1 }}
+                >
+                  {messagesOpen ? "⌃" : "⌄"}
+                </span>
+              </button>
 
-                    return (
-                      <li
-                        key={row.id}
-                        style={{
-                          padding: "14px 16px",
-                          borderBottom: "0.5px solid rgba(0,0,0,0.05)",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            marginBottom: 8,
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8,
-                            }}
-                          >
-                            <div
+              {messagesOpen ? (
+                <div style={{ marginTop: 12 }}>
+                  <p
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "#8e8e93",
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      margin: "0 4px 8px",
+                    }}
+                  >
+                    {lang === "es" ? "Historial" : "Update feed"}
+                  </p>
+
+                  {updates.length === 0 ? (
+                    <div
+                      style={{
+                        background: "#fff",
+                        borderRadius: 14,
+                        padding: "40px 20px",
+                        textAlign: "center",
+                        color: "#8e8e93",
+                        fontSize: 14,
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                      }}
+                    >
+                      {lang === "es"
+                        ? "Aún no hay actualizaciones para esta obra."
+                        : "No updates for this job yet."}
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        background: "#fff",
+                        borderRadius: 14,
+                        overflow: "hidden",
+                        boxShadow:
+                          "0 1px 3px rgba(0,0,0,0.06), 0 0.5px 1px rgba(0,0,0,0.04)",
+                      }}
+                    >
+                      <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                        {updates.map((row, index) => {
+                          const work =
+                            lang === "es"
+                              ? row.work_completed_es
+                              : row.work_completed_en;
+                          const blocker = blockerDisplayText(row, lang);
+                          const materials =
+                            lang === "es"
+                              ? row.materials_needed_es
+                              : row.materials_needed_en;
+                          const resolved =
+                            hasBlockerText(
+                              row.blockers_en,
+                              row.blockers_es,
+                              row.blockers,
+                            ) && isBlockerResolved(index, updates);
+
+                          return (
+                            <li
+                              key={row.id}
                               style={{
-                                width: 28,
-                                height: 28,
-                                borderRadius: "50%",
-                                background: getAvatarGradient(row.sender_name),
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: 11,
-                                fontWeight: 600,
-                                color: "#fff",
-                                flexShrink: 0,
+                                padding: "14px 16px",
+                                borderBottom: "0.5px solid rgba(0,0,0,0.05)",
                               }}
                             >
-                              {getInitials(row.sender_name)}
-                            </div>
-                            <span
-                              style={{
-                                fontSize: 14,
-                                fontWeight: 600,
-                                color: "#1c1c1e",
-                              }}
-                            >
-                              {row.sender_name?.trim() || t.unknown}
-                            </span>
-                          </div>
-                          <time
-                            dateTime={row.created_at}
-                            style={{ fontSize: 11, color: "#8e8e93" }}
-                          >
-                            {formatTimestampReadable(row.created_at)}
-                          </time>
-                        </div>
-
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 6,
-                          }}
-                        >
-                          {work ? (
-                            <FieldRow label={t.progress} value={work} plain />
-                          ) : null}
-                          {blocker ? (
-                            <FieldRow
-                              label={t.blocker}
-                              value={blocker}
-                              blocker
-                              resolved={resolved}
-                              blockerAction={
-                                resolved ? undefined : (
-                                  <button
-                                    type="button"
-                                    disabled={resolvingId !== null}
-                                    onClick={() => resolveBlocker(row.id)}
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  marginBottom: 8,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                  }}
+                                >
+                                  <div
                                     style={{
-                                      fontSize: 12,
+                                      width: 28,
+                                      height: 28,
+                                      borderRadius: "50%",
+                                      background: getAvatarGradient(
+                                        row.sender_name,
+                                      ),
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      fontSize: 11,
                                       fontWeight: 600,
-                                      fontFamily: "inherit",
-                                      padding: "4px 10px",
-                                      borderRadius: 7,
-                                      border: "0.5px solid rgba(0,122,255,0.35)",
-                                      background: "#fff",
-                                      color: "#007aff",
-                                      cursor:
-                                        resolvingId !== null
-                                          ? "default"
-                                          : "pointer",
-                                      opacity: resolvingId !== null ? 0.5 : 1,
+                                      color: "#fff",
+                                      flexShrink: 0,
                                     }}
                                   >
-                                    {resolvingId === row.id
-                                      ? t.resolving
-                                      : t.resolve}
-                                  </button>
-                                )
-                              }
-                            />
-                          ) : null}
-                          {materials ? (
-                            <FieldRow label={t.materials} value={materials} materials />
-                          ) : null}
-                        </div>
+                                    {getInitials(row.sender_name)}
+                                  </div>
+                                  <span
+                                    style={{
+                                      fontSize: 14,
+                                      fontWeight: 600,
+                                      color: "#1c1c1e",
+                                    }}
+                                  >
+                                    {row.sender_name?.trim() || t.unknown}
+                                  </span>
+                                </div>
+                                <time
+                                  dateTime={row.created_at}
+                                  style={{ fontSize: 11, color: "#8e8e93" }}
+                                >
+                                  {formatTimestampReadable(row.created_at)}
+                                </time>
+                              </div>
 
-                        <details
-                          style={{
-                            marginTop: 10,
-                            fontSize: 13,
-                          }}
-                        >
-                          <summary
-                            style={{
-                              cursor: "pointer",
-                              color: "#007aff",
-                              fontWeight: 500,
-                              listStyle: "none",
-                            }}
-                          >
-                            {t.original}
-                          </summary>
-                          <pre
-                            style={{
-                              margin: "8px 0 0",
-                              padding: "10px 12px",
-                              background: "#f2f2f7",
-                              borderRadius: 8,
-                              fontSize: 12,
-                              whiteSpace: "pre-wrap",
-                              wordBreak: "break-word",
-                              color: "#3c3c43",
-                              fontFamily: "inherit",
-                              lineHeight: 1.45,
-                            }}
-                          >
-                            {row.raw_message?.trim() || "—"}
-                          </pre>
-                        </details>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
+                              <div
+                                style={{
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: 6,
+                                }}
+                              >
+                                {work ? (
+                                  <FieldRow label={t.progress} value={work} plain />
+                                ) : null}
+                                {blocker ? (
+                                  <FieldRow
+                                    label={t.blocker}
+                                    value={blocker}
+                                    blocker
+                                    resolved={resolved}
+                                    blockerAction={
+                                      resolved ? undefined : (
+                                        <button
+                                          type="button"
+                                          disabled={resolvingId !== null}
+                                          onClick={() => resolveBlocker(row.id)}
+                                          style={{
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            fontFamily: "inherit",
+                                            padding: "4px 10px",
+                                            borderRadius: 7,
+                                            border:
+                                              "0.5px solid rgba(0,122,255,0.35)",
+                                            background: "#fff",
+                                            color: "#007aff",
+                                            cursor:
+                                              resolvingId !== null
+                                                ? "default"
+                                                : "pointer",
+                                            opacity: resolvingId !== null ? 0.5 : 1,
+                                          }}
+                                        >
+                                          {resolvingId === row.id
+                                            ? t.resolving
+                                            : t.resolve}
+                                        </button>
+                                      )
+                                    }
+                                  />
+                                ) : null}
+                                {materials ? (
+                                  <FieldRow
+                                    label={t.materials}
+                                    value={materials}
+                                    materials
+                                  />
+                                ) : null}
+                              </div>
+
+                              <details
+                                style={{
+                                  marginTop: 10,
+                                  fontSize: 13,
+                                }}
+                              >
+                                <summary
+                                  style={{
+                                    cursor: "pointer",
+                                    color: "#007aff",
+                                    fontWeight: 500,
+                                    listStyle: "none",
+                                  }}
+                                >
+                                  {t.original}
+                                </summary>
+                                <pre
+                                  style={{
+                                    margin: "8px 0 0",
+                                    padding: "10px 12px",
+                                    background: "#f2f2f7",
+                                    borderRadius: 8,
+                                    fontSize: 12,
+                                    whiteSpace: "pre-wrap",
+                                    wordBreak: "break-word",
+                                    color: "#3c3c43",
+                                    fontFamily: "inherit",
+                                    lineHeight: 1.45,
+                                  }}
+                                >
+                                  {row.raw_message?.trim() || "—"}
+                                </pre>
+                              </details>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </section>
           </>
         )}
       </main>
